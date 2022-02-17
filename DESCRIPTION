@@ -1,0 +1,18 @@
+Package: tidyassessments
+Title: Model Wrappers for Automated Conservation Assessments
+Version: 0.0.0.9000
+Authors@R: 
+    person("Barnaby", "Walker", , "b.walker@kew.org", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-3884-671X"))
+Description: Bindings for additional models to use with the 'parsnip' package. Models
+  comprise methods for automated conservation assessments based on occurrence record
+  data that classify species as the binary outcome "threatened" or "not threatened".
+  These categories follow the IUCN Red List definitions.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
+Imports: 
+    dplyr,
+    parsnip,
+    rlang
