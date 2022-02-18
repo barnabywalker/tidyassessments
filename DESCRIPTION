@@ -14,5 +14,9 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 Imports: 
     dplyr,
+    keras,
+    magrittr,
     parsnip,
-    rlang
+    rlang,
+    stringr,
+    tensorflow

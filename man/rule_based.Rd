@@ -8,9 +8,9 @@ rule_based(mode = "classification", engine = "eoo")
 }
 \arguments{
 \item{mode}{A single character string for the prediction outcome mode.
-Only "classification is allowed.}
+Only "classification" is allowed.}
 
-\item{engine}{A single character string specifying the rule-set engine to use.}
+\item{engine}{A single character string specifying the engine to use.}
 }
 \description{
 \code{rule_based()} defines a model that uses fixed rules to classify an input.
