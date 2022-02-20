@@ -40,6 +40,7 @@ iucnn <- function(mode="classification", engine="keras", layers=NULL, dropout=NU
   )
 }
 
+#' @export
 print.iucnn <- function(x, ...) {
   cat("Neural network assessments specification (", x$mode, ")\n\n", sep="")
   parsnip::model_printer(x, ...)
@@ -51,6 +52,54 @@ print.iucnn <- function(x, ...) {
 
   invisible(x)
 }
+
+#' @method update iucnn
+#' @rdname parsnip_update
+#' @export
+update.iucnn <-
+  # adapted from https://github.com/tidymodels/parsnip/blob/main/R/mlp.R
+  function(object,
+           parameters = NULL,
+           layers = NULL, dropout = NULL,
+           epochs = NULL, fresh = FALSE, ...) {
+
+    eng_args <- update_engine_parameters(object$eng_args, ...)
+
+    if (!is.null(parameters)) {
+      parameters <- check_final_param(parameters)
+    }
+
+    args <- list(
+      layers = enquo(layers),
+      dropout      = enquo(dropout),
+      epochs       = enquo(epochs)
+    )
+
+    args <- update_main_parameters(args, parameters)
+
+    if (fresh) {
+      object$args <- args
+      object$eng_args <- eng_args
+    } else {
+      null_args <- map_lgl(args, null_value)
+      if (any(null_args))
+        args <- args[!null_args]
+      if (length(args) > 0)
+        object$args[names(args)] <- args
+      if (length(eng_args) > 0)
+        object$eng_args[names(eng_args)] <- eng_args
+    }
+
+    new_model_spec(
+      "iucnn",
+      args = object$args,
+      eng_args = object$eng_args,
+      mode = object$mode,
+      method = NULL,
+      engine = object$engine
+    )
+  }
+
 
 
 #' Check inputs are in correct format

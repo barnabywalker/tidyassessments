@@ -34,7 +34,6 @@ make_iucnn <- function() {
     has_submodel=FALSE
   )
 
-  # add IUCN threshold based model
   parsnip::set_fit(
     model="iucnn",
     eng="keras",
