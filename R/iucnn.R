@@ -178,7 +178,10 @@ iucnn_model <- function(x, y, layers="30", dropout=0, epochs=30, validation_data
   model$y_names <- colnames(y)
 
   if (save_history) {
-    model$history <- history
+    model$history <-
+      history$metrics %>%
+      as_tibble() %>%
+      tibble::rowid_to_column(var="epoch")
   }
 
   model
