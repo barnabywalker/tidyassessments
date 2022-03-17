@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # tidyassessments
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/barnabywalker/tidyassessments/workflows/R-CMD-check/badge.svg)](https://github.com/barnabywalker/tidyassessments/actions)
 <!-- badges: end -->
 
 This is a package to make some models used for occurrence-based automated extinction risk assessments work with the tidymodels workflow.

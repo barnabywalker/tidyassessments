@@ -4,6 +4,8 @@
 # tidyassessments
 
 <!-- badges: start -->
+
+[![R-CMD-check](https://github.com/barnabywalker/tidyassessments/workflows/R-CMD-check/badge.svg)](https://github.com/barnabywalker/tidyassessments/actions)
 <!-- badges: end -->
 
 This is a package to make some models used for occurrence-based
@@ -41,9 +43,10 @@ remotes::install_github("barnabywalker/tidyassessments")
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+You can set up a tidymodels model specification like this:
 
 ``` r
 library(tidyassessments)
-## basic example code
+
+spec <- rule_based(engine="eoo")
 ```
