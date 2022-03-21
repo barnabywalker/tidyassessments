@@ -40,7 +40,7 @@ rule_based <- function(mode="classification", engine="eoo") {
 
 #' Classify species as threatened using [ConR](https://github.com/gdauby/conr) rules.
 #'
-#' [ConR::IUCN.eval] approximates a full classification based on criterion
+#' `IUCN.eval` (from ConR) approximates a full classification based on criterion
 #' B, using the EOO, AOO, and an estimate of the number of locations
 #' for a species. This function implements that classification, then
 #' makes the prediction coarser to "threatened" or "not threatened".
