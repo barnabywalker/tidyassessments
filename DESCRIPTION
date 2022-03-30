@@ -24,7 +24,8 @@ URL: https://barnabywalker.github.io/tidyassessments/
 Suggests: 
     tidyverse,
     rmarkdown,
-    tidymodels
+    tidymodels,
+    randomForest
 Depends: 
     R (>= 2.10)
 LazyData: true
