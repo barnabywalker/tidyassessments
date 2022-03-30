@@ -84,7 +84,7 @@ make_iucnn <- function() {
       pre = NULL,
       post = function(x, object) {
         colnames(x) <- object$lvl
-        x <- as_tibble(x)
+        x <- tibble::as_tibble(x)
         x
       },
       func = c(fun = "predict"),

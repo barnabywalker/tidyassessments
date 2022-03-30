@@ -63,10 +63,10 @@ update.iucnn <-
            layers = NULL, dropout = NULL,
            epochs = NULL, fresh = FALSE, ...) {
 
-    eng_args <- update_engine_parameters(object$eng_args, ...)
+    eng_args <- parsnip::update_engine_parameters(object$eng_args, ...)
 
     if (!is.null(parameters)) {
-      parameters <- check_final_param(parameters)
+      parameters <- parsnip::check_final_param(parameters)
     }
 
     args <- list(
@@ -75,13 +75,13 @@ update.iucnn <-
       epochs       = enquo(epochs)
     )
 
-    args <- update_main_parameters(args, parameters)
+    args <- parsnip::update_main_parameters(args, parameters)
 
     if (fresh) {
       object$args <- args
       object$eng_args <- eng_args
     } else {
-      null_args <- map_lgl(args, null_value)
+      null_args <- map_lgl(args, parsnip::null_value)
       if (any(null_args))
         args <- args[!null_args]
       if (length(args) > 0)
@@ -90,7 +90,7 @@ update.iucnn <-
         object$eng_args[names(eng_args)] <- eng_args
     }
 
-    new_model_spec(
+    parsnip::new_model_spec(
       "iucnn",
       args = object$args,
       eng_args = object$eng_args,
@@ -229,7 +229,7 @@ iucnn_model <- function(x, y, layers="30", dropout=0, epochs=30, validation_data
   if (save_history) {
     model$history <-
       history$metrics %>%
-      as_tibble() %>%
+      tibble::as_tibble() %>%
       tibble::rowid_to_column(var="epoch")
   }
 
