@@ -6,6 +6,7 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/barnabywalker/tidyassessments/workflows/R-CMD-check/badge.svg)](https://github.com/barnabywalker/tidyassessments/actions)
+[![DOI](https://zenodo.org/badge/460609238.svg)](https://zenodo.org/badge/latestdoi/460609238)
 <!-- badges: end -->
 
 This is a package to make some models used for occurrence-based
