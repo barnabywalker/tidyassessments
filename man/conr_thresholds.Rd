@@ -17,7 +17,7 @@ conr_thresholds(eoo, aoo, locations)
 classification of whether a species is threatened or not.
 }
 \description{
-\link[ConR:IUCN.eval]{ConR::IUCN.eval} approximates a full classification based on criterion
+\code{IUCN.eval} (from ConR) approximates a full classification based on criterion
 B, using the EOO, AOO, and an estimate of the number of locations
 for a species. This function implements that classification, then
 makes the prediction coarser to "threatened" or "not threatened".

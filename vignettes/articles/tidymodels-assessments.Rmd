@@ -1,0 +1,202 @@
+---
+title: "Using tidymodels to make automated assessments"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(glue)
+library(tidymodels)
+library(tidyassessments)
+```
+
+Automated assessment methods use parameters or predictors to predict or assign preliminary IUCN Red List categories to species. [tidymodels](https://www.tidymodels.org/) can help to provide a consistent interface to a range of statistical and machine learning models.
+
+Here, I'll go through the general flow of setting up and running a model using tidymodels.
+
+## Input data
+
+Before getting to tidymodels, the first thing we need is some data to train our model with.
+
+We usually need a set of parameters or predictors calculated at the species level to run an automated conservation assessment. So we can focus on the tidymodels approach, we'll just use something pre-prepared.
+
+I've included an example dataset in this package called `myrcia_predictors`. This is a set of 13 continuous numeric quantities calculated from GBIF occurrence records for all accepted species in the genus *Myrcia*. We calculated these as part of our paper ["Evidence-based guidelines for automated conservation assessments of plant species"](https://doi.org/10.32942/osf.io/zxq6s).
+
+```{r view-data}
+glimpse(myrcia_predictors)
+```
+
+As you can see, there are a variety of numeric predictors alongside the species name and identifier ("wcvp_id"). There is also some taxonomic info ("genus", "section") and the IUCN Red List category ("category").
+
+First we'll split the species into ones that have been assessed (`labelled`) and those that haven't (`unlabelled`). We'll include Data Deficient species in `unlabelled`.
+
+```{r split-assessed}
+labelled <- filter(myrcia_predictors, category != "DD", ! is.na(category))
+unlabelled <- filter(myrcia_predictors, category == "DD" | is.na(category))
+
+glue("{nrow(labelled)} labelled examples for training and evaluation", 
+     "{nrow(unlabelled)} unlabelled examples for prediction", .sep="\n")
+```
+
+Next, we'll make our prediction target the binarised categories "threatened" (VU, EN, CR) and "not threatened" (LC and NT), to simplify things.
+
+```{r create-target}
+labelled$obs <- ifelse(labelled$category %in% c("LC", "NT"), "not threatened", "threatened")
+labelled$obs <- factor(labelled$obs, levels=c("threatened", "not threatened"))
+
+glue("{percent_format(accuracy=0.1)(mean(labelled$obs == 'threatened'))}",
+     "of training/evaluation species are threatened", .sep=" ")
+```
+
+## Data budget
+
+Before training any model, we need to determine our data budget - how we'll split our data for the different steps of our process. How we split the data will depend on what exactly we need to do. [This paper from Sebastian Raschka](https://arxiv.org/abs/1811.12808) gives a really detailed overview of different approaches to splitting data, and when you might want to use what approach.
+
+In our case, we just want to estimate how our model will perform on unseen data. We have a relatively small dataset, so a single training/test split might give us a biased performance estimate. Instead, we'll use 5-fold cross-validation. Alternatively, we could use bootstrap resampling, which would also give us confidence intervals on the performance.
+
+```{r setup-budget}
+folds <- vfold_cv(v=5, data=labelled)
+folds
+```
+
+## Evaluation metrics
+
+Another thing to set up before we actually get to training a model is what metric we want to use to evaluate it.
+
+For our purposes we care about a few things:
+
+* the proportion of species our model correctly classifies, measured by **accuracy**
+* the proportion of threatened species our model correctly identifies, measured by **sensitivity**
+* the proportion of not threatened species our model correctly identifies, measured by **specificity**
+
+The picture of model performance given by these three measures can be contradictory sometimes (e.g. a high accuracy with high specificity, but a low sensitivity) and it can be hard to weigh up how good a model is without a single measure of performance. Associating different costs with wrongly classifying a threatened species and wrongly classifying a not threatened species (in terms of money, time, or some other quantity) would be ideal. But when we're not clear on the costs, and we can use a single measure that balances the different types of misclassification.
+
+In this case, we'll use the true skill statistic (also called Youden's J-index), which is defined as `sensitivity + specificity - 1`.
+
+```{r define-metrics}
+metrics <- metric_set(accuracy, sensitivity, specificity, j_index)
+metrics
+```
+
+We'll calculate all four of these metrics so we get a full picture of how our model is performing.
+
+## Pre-processing
+
+The next step in our process is to define which predictors our model will use and any pre-processing steps we need to do to them.
+
+To define our predictors, we use the R formula specification. For many machine learning models, we just need to add each predictor as a term in the formula. For some other models, like a GLM, you might need to specify interactions between terms as well.
+
+```{r setup-formula}
+form <- formula(
+  obs ~ eoo + centroid_latitude + human_population + precipitation_driest + forest_loss
+)
+```
+
+Once we have our formula, we set up a recipe that details each of our pre-processing steps. The ones we'll use here:
+
+* impute missing predictor values using K-nearest neighbours (`step_impute_knn`)
+* remove any predictors with correlation above 0.9 to another predictor (`step_corr`)
+* remove any predictors with zero-variance (`step_zv`)
+* mean center and scale each predictor by it's standard deviation (`step_normalize`)
+
+```{r setup-recipe}
+rec <- 
+    recipe(form, data=labelled) %>%
+    step_impute_knn(all_predictors()) %>%
+    step_corr(all_predictors(), threshold=0.9) %>%
+    step_zv(all_predictors()) %>%
+    step_normalize(all_predictors())
+
+rec
+```
+
+The important thing here is that we haven't applied any of these steps to our data yet, this is just the specification.
+
+One advantage of this is it prevents any data leakage between our training and test sets, because all calculations (like the mean and standard deviation for normalisation) will only be performed on the training data sets. It also lets us reuse the same recipe for different models and different datasets.
+
+## Model specification
+
+Now we get to specifying the model we want to use. 
+
+The thinking behind these specifications is to separate the type of model from the package that implements it.
+
+So below, we've said that we want a random forest model with 1000 trees.
+
+```{r setup-model}
+spec <-
+  rand_forest(trees=1000) %>%
+  set_engine("randomForest", importance=TRUE) %>%
+  set_mode("classification")
+
+spec
+```
+
+After that, we say that we want to use the implementation from the "randomForest" package. We can also specify which engine-specific arguments we want at this point - for instance that we want to calculate feature importance.
+
+The final part of the specification is the mode we want to use. This is determined by the problem we're trying to solve. In the case of automated assessments, we're usually trying to predict which IUCN category a species belongs to, so we chose "classification".
+
+## Creating a workflow
+
+The final part of setting everything up is to link the pre-processing recipe to the model specification in a workflow.
+
+```{r setup-workflow}
+wf <- 
+  workflow() %>%
+  add_recipe(rec) %>%
+  add_model(spec)
+
+wf
+```
+
+As we mentioned before, this helps to prevent data leakage when training and evaluating our model. It also has the benefit of allowing us to set up multiple workflows, using the same pre-processing recipe with a range of different model specifications, or multiple pre-processing recipes with the same model.
+
+The possibilities are endless!
+
+## Evaluating our model
+
+We can now evaluate the performance of our whole workflow using the data budget we set up before.
+
+```{r fit-workflow}
+results <- fit_resamples(
+  wf, 
+  folds, 
+  metrics=metrics,
+  control=control_resamples(save_pred=TRUE, save_workflow=TRUE)
+)
+
+collect_metrics(results)
+```
+
+This gives us an estimate of how our model will perform on completely new data, that it hasn't seen before.
+
+## Predicting threat
+
+The final step is to use our model to make predictions.
+
+We want our model to learn from as much data as possible, so we fit the model for a final time on our whole labelled dataset. This is fine, because we don't intend to evaluate the performance of our model on any part of it again.
+
+```{r final-model}
+m <- fit(wf, labelled)
+m
+```
+
+One thing that you might notice from the model summary above is that it has its own report of the model performance called the "OOB estimate of error rate". This is the "out-of-bag" error - each tree of the random forest model is trained on a different subset of the training data, and the OOB error is evaluated for each tree on the data not included in that subset.
+
+We could use that as our estimate of how well the model performs, but generally I prefer to use the cross-validation setup we used above. One reason is that it allows the same cross-validation splits to be used to compare the performance of multiple models. Another is that sometimes the OOB error might be a little bit more pessimistic that cross-validation, but generally they agree quite well.
+
+Now we have our final model, we can at last estimate the total proportion of *Myrcia* species that are threatened (including those already assessed).
+
+```{r}
+preds <- predict(m, myrcia_predictors)
+prop_threatened <- mean(preds$.pred_class == "threatened")
+glue("{percent_format(accuracy=0.1)(prop_threatened)} of Myrcia species predicted threatened")
+```
+
+Much higher than the proportion of assessed *Myrcia* species that are threatened!
+
